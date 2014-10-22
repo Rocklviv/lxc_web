@@ -81,6 +81,7 @@ class mod_lxc():
     if not data:
       abort(400, json.dumps(MISSING_FIELD_STATUS % 'container_name'))
     else:
+      print(data)
       data = json.loads(data.decode('utf-8'))
       try:
         container = data['container_name']
@@ -95,22 +96,96 @@ class mod_lxc():
         return json.dumps(NOT_EXISTS_CONTAINER_STATUS % container)
 
 
+  def stop(self):
+    """
+
+    :return:
+    """
+    data = request.body.readline()
+    response.set_header('Content-Type:', 'application/json')
+    if not data:
+      abort(400, json.dumps(MISSING_FIELD_STATUS % 'container_name'))
+    else:
+      data = json.loads(data.decode('utf-8'))
+      try:
+        container = data['container_name']
+      except Exception as e:
+        abort(400, json.dumps(MISSING_FIELD_STATUS % 'container_name'))
+
+      if self._check_containers(container):
+        cnt = lxc.Container(container)
+        cnt.stop()
+        return json.dumps(STOPED_SUCCESS_STATUS % container)
+      else:
+        return json.dumps(NOT_EXISTS_CONTAINER_STATUS % container)
+
+
+  def freeze(self):
+    """
+
+    :return:
+    """
+    data = request.body.readline()
+    response.set_header('Content-Type:', 'application/json')
+    if not data:
+      abort(400, json.dumps(MISSING_FIELD_STATUS % 'container_name'))
+    else:
+      data = json.loads(data.decode('utf-8'))
+      try:
+        container = data['container_name']
+      except Exception as e:
+        abort(400, json.dumps(MISSING_FIELD_STATUS % 'container_name'))
+
+      if self._check_containers(container):
+        cnt = lxc.Container(container)
+        cnt.freeze()
+        return json.dumps(FREEZED_SUCCESS_STATUS % container)
+      else:
+        return json.dumps(NOT_EXISTS_CONTAINER_STATUS % container)
+
+
+  def unfreeze(self):
+    """
+
+    :return:
+    """
+    data = request.body.readline()
+    response.set_header('Content-Type:', 'application/json')
+    if not data:
+      abort(400, json.dumps(MISSING_FIELD_STATUS % 'container_name'))
+    else:
+      data = json.loads(data.decode('utf-8'))
+      try:
+        container = data['container_name']
+      except Exception as e:
+        abort(400, json.dumps(MISSING_FIELD_STATUS % 'container_name'))
+
+      if self._check_containers(container):
+        cnt = lxc.Container(container)
+        cnt.unfreeze()
+        return json.dumps(UNFREEZED_SUCCESS_STATUS % container)
+      else:
+        return json.dumps(NOT_EXISTS_CONTAINER_STATUS % container)
+
+
   def _get_list_containers(self):
     """
     :return: list
     """
-    list_containers = []
+    lst_cnt = list()
     cnt = lxc.list_containers(True, True, True, False)
+    d = {}
     for ins in cnt:
-      list_containers.append("{'name': %s, 'state': %s, 'size': %s, 'release_arch': %s}" % (ins.state,
-                                                                                                    ins.name,
-                                                                                                    self._get_fs_size(ins.name),
-                                                                                                    ins.config_file_name))
-    return list_containers
+      d['name'] = ins.name
+      d['state'] = ins.state
+      d['size'] = self._get_fs_size(ins.name)
+      d['release'] = ins.config_file_name
+      lst_cnt.append(d)
+
+    return lst_cnt
 
 
   def _get_fs_size(self, container_name):
-    dirs_dict = {}
     cnt = lxc.Container(container_name)
     rootfs = cnt.get_config_item('lxc.rootfs')
     total_size = 0
@@ -129,17 +204,16 @@ class mod_lxc():
     if not int(total_size):
         total_size = total_size * 1024
         r = r -1
-    val_q.put('%.1f%s' % (float(total_size), ['B', 'K', 'M', 'G', 'T'][r]))
+    size = ('%.1f%s' % (float(total_size), ['B', 'K', 'M', 'G', 'T'][r]))
+    return size
 
 
   def _check_containers(self, container_name):
     """
     :return: boolean
     """
-    if container_name in self._get_list_containers():
-      return True
-    else:
-      return False
+    list = self._get_list_containers()
+
 
   def _get_credentials(self, template, container):
     credentials = ''
@@ -163,3 +237,6 @@ MISSING_FIELDS_STATUS = "{ status: 4, message: 'Missing required field(s)' }"
 MISSING_FIELD_STATUS = "{ status: 5, message: 'Missing required filed %s' }"
 DESTROYED_SUCCESS_STATUS = "{ status: 0, message: 'Container %s destroyed' }"
 STARTED_SUCCESS_STATUS = "{ status: 0, message: 'Container %s started successfully' }"
+STOPED_SUCCESS_STATUS = "{ status: 0, message: 'Container %s stopped successfully' }"
+FREEZED_SUCCESS_STATUS = "{ status: 0, message: 'Container %s freezed successfully' }"
+UNFREEZED_SUCCESS_STATUS = "{ status: 0, message: 'Container %s unfreezed successfully' }"
